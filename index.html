@@ -26,6 +26,15 @@
         button:hover {
             background: #45a049;
         }
+        #instructions {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -35,6 +44,9 @@
         <button onclick="addObject('cylinder')">Add Cylinder</button>
         <button onclick="addObject('cone')">Add Cone</button>
         <button onclick="addObject('torus')">Add Torus</button>
+    </div>
+    <div id="instructions">
+        Left Click: Drag Objects | Right Click: Delete Object | Mouse Wheel: Zoom | Alt + Left Click: Rotate View
     </div>
 
     <script type="importmap">
@@ -69,6 +81,13 @@
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN
+        };
+        controls.enablePan = true;
+        controls.enableRotate = false; // Only enable rotation with Alt key
 
         // Ground
         const groundGeometry = new THREE.PlaneGeometry(10, 10);
@@ -93,6 +112,8 @@
 
         // Objects array
         const objects = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
         function getObjectHeight(object) {
             const box = new THREE.Box3().setFromObject(object);
@@ -149,6 +170,41 @@
             controls.enabled = true;
             event.object.userData.isDragging = false;
         });
+
+        // Delete object on right click
+        function onRightClick(event) {
+            event.preventDefault();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(objects);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                scene.remove(object);
+                objects.splice(objects.indexOf(object), 1);
+            }
+        }
+
+        // Enable/disable rotation with Alt key
+        function onKeyDown(event) {
+            if (event.key === 'Alt') {
+                controls.enableRotate = true;
+            }
+        }
+
+        function onKeyUp(event) {
+            if (event.key === 'Alt') {
+                controls.enableRotate = false;
+            }
+        }
+
+        // Add event listeners
+        renderer.domElement.addEventListener('contextmenu', onRightClick);
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
 
         // Function to add objects
         window.addObject = function(type) {
