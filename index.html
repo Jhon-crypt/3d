@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Three.js Interactive Example</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+        button {
+            margin: 5px;
+            padding: 8px;
+            cursor: pointer;
+        }
+        #instructions {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button onclick="window.addObject('box')">Add Box</button>
+        <button onclick="window.addObject('sphere')">Add Sphere</button>
+        <button onclick="window.addObject('cylinder')">Add Cylinder</button>
+        <button onclick="window.addObject('cone')">Add Cone</button>
+        <button onclick="window.addObject('torus')">Add Torus</button>
+    </div>
+    <div id="instructions">
+        Left Click: Rotate View | Right Click: Pan | Scroll: Zoom | Drag Objects: Left Click + Hold
+    </div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { DragControls } from 'three/addons/controls/DragControls.js';
+
+        // Set up scene, camera, and renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add OrbitControls
+        const orbitControls = new OrbitControls(camera, renderer.domElement);
+        orbitControls.enableDamping = true;
+        orbitControls.dampingFactor = 0.05;
+
+        // Create an array to store objects that can be dragged
+        const objects = [];
+
+        // Add DragControls
+        const dragControls = new DragControls(objects, camera, renderer.domElement);
+
+        // Add event listeners for drag controls
+        dragControls.addEventListener('dragstart', function () {
+            orbitControls.enabled = false;
+        });
+
+        dragControls.addEventListener('dragend', function () {
+            orbitControls.enabled = true;
+        });
+
+        // Add grid helper
+        const gridHelper = new THREE.GridHelper(20, 20);
+        scene.add(gridHelper);
+
+        // Set camera position
+        camera.position.set(5, 5, 5);
+        orbitControls.update();
+
+        // Function to generate random color
+        function getRandomColor() {
+            return Math.random() * 0xffffff;
+        }
+
+        // Function to generate random position
+        function getRandomPosition() {
+            return {
+                x: (Math.random() - 0.5) * 10,
+                y: Math.random() * 5 + 0.5,
+                z: (Math.random() - 0.5) * 10
+            };
+        }
+
+        // Function to add objects
+        window.addObject = function(type) {
+            let geometry;
+            switch(type) {
+                case 'box':
+                    geometry = new THREE.BoxGeometry(1, 1, 1);
+                    break;
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+                    break;
+                case 'cone':
+                    geometry = new THREE.ConeGeometry(0.5, 1, 32);
+                    break;
+                case 'torus':
+                    geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+                    break;
+            }
+
+            const material = new THREE.MeshStandardMaterial({ 
+                color: getRandomColor(),
+                metalness: 0.3,
+                roughness: 0.4
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            const pos = getRandomPosition();
+            mesh.position.set(pos.x, pos.y, pos.z);
+            
+            // Add random rotation
+            mesh.rotation.x = Math.random() * Math.PI;
+            mesh.rotation.y = Math.random() * Math.PI;
+            mesh.rotation.z = Math.random() * Math.PI;
+            
+            scene.add(mesh);
+            objects.push(mesh); // Add to draggable objects array
+        }
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // Add point lights for better illumination
+        const pointLight1 = new THREE.PointLight(0xffffff, 1);
+        pointLight1.position.set(10, 10, 10);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0xffffff, 1);
+        pointLight2.position.set(-10, 10, -10);
+        scene.add(pointLight2);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            orbitControls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resizing
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html> 
