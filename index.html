@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Three.js Interactive Example</title>
+    <title>Three.js Physics World</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -18,6 +18,13 @@
             margin: 5px;
             padding: 8px;
             cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #45a049;
         }
         #instructions {
             position: fixed;
@@ -41,6 +48,7 @@
     <div id="instructions">
         Left Click: Rotate View | Right Click: Pan | Scroll: Zoom | Drag Objects: Left Click + Hold
     </div>
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
     <script type="importmap">
         {
             "imports": {
@@ -53,122 +61,227 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DragControls } from 'three/addons/controls/DragControls.js';
+        import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
-        // Set up scene, camera, and renderer
+        let physicsWorld;
+        const rigidBodies = [];
+        const margin = 0.05;
+        let transformAux1;
+
+        // Ammo.js initialization
+        Ammo().then(function(Ammo) {
+            // Physics configuration
+            const collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+            const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+            const broadphase = new Ammo.btDbvtBroadphase();
+            const solver = new Ammo.btSequentialImpulseConstraintSolver();
+            physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+            physicsWorld.setGravity(new Ammo.btVector3(0, -9.8, 0));
+
+            transformAux1 = new Ammo.btTransform();
+
+            initScene();
+        });
+
+        // Three.js scene setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x333333);
+        scene.background = new THREE.Color(0x88ccff);
+        scene.fog = new THREE.Fog(0x88ccff, 0, 50);
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(10, 5, 10);
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1;
         document.body.appendChild(renderer.domElement);
 
-        // Add OrbitControls
+        // Controls
         const orbitControls = new OrbitControls(camera, renderer.domElement);
         orbitControls.enableDamping = true;
         orbitControls.dampingFactor = 0.05;
 
-        // Create an array to store objects that can be dragged
         const objects = [];
-
-        // Add DragControls
         const dragControls = new DragControls(objects, camera, renderer.domElement);
 
-        // Add event listeners for drag controls
-        dragControls.addEventListener('dragstart', function () {
+        dragControls.addEventListener('dragstart', function (event) {
             orbitControls.enabled = false;
+            event.object.userData.isDragging = true;
         });
 
-        dragControls.addEventListener('dragend', function () {
+        dragControls.addEventListener('drag', function (event) {
+            const object = event.object;
+            if (object.userData.physicsBody) {
+                const pos = object.position;
+                const quat = object.quaternion;
+                const physicsBody = object.userData.physicsBody;
+                const ms = physicsBody.getMotionState();
+                if (ms) {
+                    ms.getWorldTransform(transformAux1);
+                    transformAux1.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
+                    transformAux1.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
+                    ms.setWorldTransform(transformAux1);
+                    physicsBody.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
+                    physicsBody.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
+                }
+            }
+        });
+
+        dragControls.addEventListener('dragend', function (event) {
             orbitControls.enabled = true;
+            event.object.userData.isDragging = false;
         });
 
-        // Add grid helper
-        const gridHelper = new THREE.GridHelper(20, 20);
-        scene.add(gridHelper);
+        function initScene() {
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(40, 40);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x999999,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
 
-        // Set camera position
-        camera.position.set(5, 5, 5);
-        orbitControls.update();
+            // Physics ground
+            const groundShape = new Ammo.btStaticPlaneShape(new Ammo.btVector3(0, 1, 0), 0);
+            const groundTransform = new Ammo.btTransform();
+            groundTransform.setIdentity();
+            groundTransform.setOrigin(new Ammo.btVector3(0, 0, 0));
+            const groundMass = 0;
+            const groundLocalInertia = new Ammo.btVector3(0, 0, 0);
+            const groundMotionState = new Ammo.btDefaultMotionState(groundTransform);
+            const groundInfo = new Ammo.btRigidBodyConstructionInfo(groundMass, groundMotionState, groundShape, groundLocalInertia);
+            const groundBody = new Ammo.btRigidBody(groundInfo);
+            physicsWorld.addRigidBody(groundBody);
 
-        // Function to generate random color
-        function getRandomColor() {
-            return Math.random() * 0xffffff;
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(10, 10, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.near = 1;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            animate();
         }
 
-        // Function to generate random position
-        function getRandomPosition() {
-            return {
-                x: (Math.random() - 0.5) * 10,
-                y: Math.random() * 5 + 0.5,
-                z: (Math.random() - 0.5) * 10
-            };
-        }
-
-        // Function to add objects
         window.addObject = function(type) {
             let geometry;
+            let shape;
+            let size;
+
             switch(type) {
                 case 'box':
-                    geometry = new THREE.BoxGeometry(1, 1, 1);
+                    size = { x: 1, y: 1, z: 1 };
+                    geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+                    shape = new Ammo.btBoxShape(new Ammo.btVector3(size.x * 0.5, size.y * 0.5, size.z * 0.5));
                     break;
                 case 'sphere':
-                    geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                    const radius = 0.5;
+                    geometry = new THREE.SphereGeometry(radius, 32, 32);
+                    shape = new Ammo.btSphereShape(radius);
                     break;
                 case 'cylinder':
                     geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+                    shape = new Ammo.btCylinderShape(new Ammo.btVector3(0.5, 0.5, 0.5));
                     break;
                 case 'cone':
                     geometry = new THREE.ConeGeometry(0.5, 1, 32);
+                    shape = new Ammo.btConeShape(0.5, 1);
                     break;
                 case 'torus':
                     geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+                    shape = new Ammo.btSphereShape(0.5); // Simplified physics shape for torus
                     break;
             }
 
             const material = new THREE.MeshStandardMaterial({ 
-                color: getRandomColor(),
-                metalness: 0.3,
-                roughness: 0.4
+                color: Math.random() * 0xffffff,
+                roughness: 0.7,
+                metalness: 0.3
             });
+
             const mesh = new THREE.Mesh(geometry, material);
-            const pos = getRandomPosition();
-            mesh.position.set(pos.x, pos.y, pos.z);
-            
-            // Add random rotation
-            mesh.rotation.x = Math.random() * Math.PI;
-            mesh.rotation.y = Math.random() * Math.PI;
-            mesh.rotation.z = Math.random() * Math.PI;
-            
+            mesh.position.set(
+                (Math.random() - 0.5) * 8,
+                Math.random() * 5 + 2,
+                (Math.random() - 0.5) * 8
+            );
+            mesh.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             scene.add(mesh);
-            objects.push(mesh); // Add to draggable objects array
+            objects.push(mesh);
+
+            // Physics body
+            const mass = 1;
+            const localInertia = new Ammo.btVector3(0, 0, 0);
+            shape.calculateLocalInertia(mass, localInertia);
+
+            const transform = new Ammo.btTransform();
+            transform.setIdentity();
+            transform.setOrigin(new Ammo.btVector3(mesh.position.x, mesh.position.y, mesh.position.z));
+            transform.setRotation(new Ammo.btQuaternion(mesh.quaternion.x, mesh.quaternion.y, mesh.quaternion.z, mesh.quaternion.w));
+
+            const motionState = new Ammo.btDefaultMotionState(transform);
+            const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
+            const body = new Ammo.btRigidBody(rbInfo);
+
+            body.setFriction(0.5);
+            body.setRollingFriction(0.1);
+            body.setRestitution(0.7);
+
+            physicsWorld.addRigidBody(body);
+
+            mesh.userData.physicsBody = body;
+            rigidBodies.push(mesh);
         }
 
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0x404040, 1);
-        scene.add(ambientLight);
+        function updatePhysics(deltaTime) {
+            physicsWorld.stepSimulation(deltaTime, 10);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 5, 5);
-        scene.add(directionalLight);
+            for (let i = 0; i < rigidBodies.length; i++) {
+                const objThree = rigidBodies[i];
+                const objPhys = objThree.userData.physicsBody;
+                const ms = objPhys.getMotionState();
 
-        // Add point lights for better illumination
-        const pointLight1 = new THREE.PointLight(0xffffff, 1);
-        pointLight1.position.set(10, 10, 10);
-        scene.add(pointLight1);
+                if (ms && !objThree.userData.isDragging) {
+                    ms.getWorldTransform(transformAux1);
+                    const p = transformAux1.getOrigin();
+                    const q = transformAux1.getRotation();
+                    objThree.position.set(p.x(), p.y(), p.z());
+                    objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
+                }
+            }
+        }
 
-        const pointLight2 = new THREE.PointLight(0xffffff, 1);
-        pointLight2.position.set(-10, 10, -10);
-        scene.add(pointLight2);
-
-        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
+            const deltaTime = 1 / 60;
+            updatePhysics(deltaTime);
             orbitControls.update();
             renderer.render(scene, camera);
         }
-        animate();
 
-        // Handle window resizing
         window.addEventListener('resize', onWindowResize, false);
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -176,5 +289,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
     </script>
+    <script async src="https://cdn.jsdelivr.net/npm/ammo.js@0.0.2/ammo.js"></script>
 </body>
 </html> 
