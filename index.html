@@ -46,7 +46,7 @@
         <button onclick="addObject('torus')">Add Torus</button>
     </div>
     <div id="instructions">
-        Left Click: Drag Objects | Right Click: Delete Object | Mouse Wheel: Zoom | Alt + Left Click: Rotate View
+        Left Click: Select/Drag Objects | Right Click + Drag: Rotate View | Middle Click + Drag: Pan | Mouse Wheel: Zoom | Double Click: Delete Object
     </div>
 
     <script type="importmap">
@@ -62,6 +62,7 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DragControls } from 'three/addons/controls/DragControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
         // Scene setup
         const scene = new THREE.Scene();
@@ -79,15 +80,24 @@
         document.body.appendChild(renderer.domElement);
 
         // Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN
+        const orbitControls = new OrbitControls(camera, renderer.domElement);
+        orbitControls.enableDamping = true;
+        orbitControls.dampingFactor = 0.05;
+        orbitControls.enablePan = true;
+        orbitControls.enableRotate = true;
+        orbitControls.enableZoom = true;
+        orbitControls.mouseButtons = {
+            LEFT: null,
+            MIDDLE: THREE.MOUSE.PAN,
+            RIGHT: THREE.MOUSE.ROTATE
         };
-        controls.enablePan = true;
-        controls.enableRotate = false; // Only enable rotation with Alt key
+
+        // Transform Controls
+        const transformControls = new TransformControls(camera, renderer.domElement);
+        transformControls.addEventListener('dragging-changed', function (event) {
+            orbitControls.enabled = !event.value;
+        });
+        scene.add(transformControls);
 
         // Ground
         const groundGeometry = new THREE.PlaneGeometry(10, 10);
@@ -114,6 +124,8 @@
         const objects = [];
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
+        let selectedObject = null;
+        const originalMaterials = new Map();
 
         function getObjectHeight(object) {
             const box = new THREE.Box3().setFromObject(object);
@@ -135,11 +147,9 @@
                 if (other !== object) {
                     const box2 = new THREE.Box3().setFromObject(other);
                     
-                    // Check if boxes intersect
                     if (box1.intersectsBox(box2)) {
-                        // Calculate penetration depth
                         const penetrationY = box1.min.y - box2.max.y;
-                        if (Math.abs(penetrationY) < 0.1) { // Small threshold for resting
+                        if (Math.abs(penetrationY) < 0.1) {
                             object.position.y = box2.max.y + objectHeight / 2;
                         }
                         return true;
@@ -149,30 +159,97 @@
             return false;
         }
 
+        function highlightObject(object) {
+            if (!originalMaterials.has(object)) {
+                originalMaterials.set(object, object.material.clone());
+                const highlightMaterial = object.material.clone();
+                highlightMaterial.emissive.setHex(0x666600);
+                object.material = highlightMaterial;
+            }
+        }
+
+        function unhighlightObject(object) {
+            if (originalMaterials.has(object)) {
+                object.material = originalMaterials.get(object);
+                originalMaterials.delete(object);
+            }
+        }
+
+        function selectObject(object) {
+            if (selectedObject === object) return;
+            
+            if (selectedObject) {
+                unhighlightObject(selectedObject);
+            }
+            
+            selectedObject = object;
+            if (selectedObject) {
+                highlightObject(selectedObject);
+                transformControls.attach(selectedObject);
+            } else {
+                transformControls.detach();
+            }
+        }
+
+        // Click handler for object selection
+        function onClick(event) {
+            event.preventDefault();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(objects);
+
+            if (intersects.length > 0) {
+                selectObject(intersects[0].object);
+            } else {
+                selectObject(null);
+            }
+        }
+
+        // Key handler for transform controls
+        function onKeyDown(event) {
+            switch (event.key.toLowerCase()) {
+                case 'g':
+                    transformControls.setMode('translate');
+                    break;
+                case 'r':
+                    transformControls.setMode('rotate');
+                    break;
+                case 's':
+                    transformControls.setMode('scale');
+                    break;
+                case 'escape':
+                    selectObject(null);
+                    break;
+            }
+        }
+
         const dragControls = new DragControls(objects, camera, renderer.domElement);
 
         dragControls.addEventListener('dragstart', function (event) {
-            controls.enabled = false;
+            orbitControls.enabled = false;
             event.object.userData.isDragging = true;
+            selectObject(event.object);
         });
 
         dragControls.addEventListener('drag', function (event) {
             const object = event.object;
             const objectHeight = getObjectHeight(object);
             
-            // Prevent dragging below ground
             if (object.position.y < objectHeight / 2) {
                 object.position.y = objectHeight / 2;
             }
         });
 
         dragControls.addEventListener('dragend', function (event) {
-            controls.enabled = true;
+            orbitControls.enabled = true;
             event.object.userData.isDragging = false;
         });
 
-        // Delete object on right click
-        function onRightClick(event) {
+        // Delete object on double click
+        function onDoubleClick(event) {
             event.preventDefault();
             
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -183,28 +260,18 @@
 
             if (intersects.length > 0) {
                 const object = intersects[0].object;
+                if (selectedObject === object) {
+                    selectObject(null);
+                }
                 scene.remove(object);
                 objects.splice(objects.indexOf(object), 1);
             }
         }
 
-        // Enable/disable rotation with Alt key
-        function onKeyDown(event) {
-            if (event.key === 'Alt') {
-                controls.enableRotate = true;
-            }
-        }
-
-        function onKeyUp(event) {
-            if (event.key === 'Alt') {
-                controls.enableRotate = false;
-            }
-        }
-
         // Add event listeners
-        renderer.domElement.addEventListener('contextmenu', onRightClick);
+        renderer.domElement.addEventListener('dblclick', onDoubleClick);
+        renderer.domElement.addEventListener('click', onClick);
         document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
 
         // Function to add objects
         window.addObject = function(type) {
@@ -251,20 +318,18 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            // Update objects
             objects.forEach(object => {
-                if (!object.userData.isDragging) {
+                if (!object.userData.isDragging && !transformControls.object) {
                     const oldY = object.position.y;
-                    object.position.y -= 0.1; // Apply gravity
+                    object.position.y -= 0.1;
 
-                    // Check for collisions
                     if (checkCollision(object)) {
                         object.position.y = Math.max(object.position.y, oldY);
                     }
                 }
             });
             
-            controls.update();
+            orbitControls.update();
             renderer.render(scene, camera);
         }
         animate();
