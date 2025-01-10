@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Three.js Example</title>
+    <title>Three.js Building Explorer</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -13,6 +13,7 @@
             padding: 10px;
             border-radius: 5px;
             color: white;
+            z-index: 100;
         }
         button {
             margin: 5px;
@@ -34,6 +35,17 @@
             padding: 10px;
             border-radius: 5px;
             color: white;
+            z-index: 100;
+        }
+        #mode-switch {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            z-index: 100;
         }
     </style>
 </head>
@@ -45,8 +57,12 @@
         <button onclick="addObject('cone')">Add Cone</button>
         <button onclick="addObject('torus')">Add Torus</button>
     </div>
+    <div id="mode-switch">
+        <button onclick="toggleNavigationMode()">Toggle Navigation Mode (T)</button>
+    </div>
     <div id="instructions">
-        Left Click: Select/Drag Objects | Right Click + Drag: Rotate View | Middle Click + Drag: Pan | Mouse Wheel: Zoom | Double Click: Delete Object
+        Object Mode: Left Click: Select/Drag | Right Click + Drag: Rotate View | Middle Click + Drag: Pan | Mouse Wheel: Zoom | Double Click: Delete
+        Navigation Mode (Press T): WASD: Move | Mouse: Look | Space: Up | Shift: Down
     </div>
 
     <script type="importmap">
@@ -63,6 +79,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DragControls } from 'three/addons/controls/DragControls.js';
         import { TransformControls } from 'three/addons/controls/TransformControls.js';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
         // Scene setup
         const scene = new THREE.Scene();
@@ -83,14 +100,24 @@
         const orbitControls = new OrbitControls(camera, renderer.domElement);
         orbitControls.enableDamping = true;
         orbitControls.dampingFactor = 0.05;
-        orbitControls.enablePan = true;
-        orbitControls.enableRotate = true;
-        orbitControls.enableZoom = true;
         orbitControls.mouseButtons = {
             LEFT: null,
             MIDDLE: THREE.MOUSE.PAN,
             RIGHT: THREE.MOUSE.ROTATE
         };
+
+        // First Person Controls
+        const pointerLockControls = new PointerLockControls(camera, document.body);
+        let navigationMode = false;
+        const moveSpeed = 0.15;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let moveUp = false;
+        let moveDown = false;
 
         // Transform Controls
         const transformControls = new TransformControls(camera, renderer.domElement);
@@ -99,20 +126,105 @@
         });
         scene.add(transformControls);
 
-        // Ground
-        const groundGeometry = new THREE.PlaneGeometry(10, 10);
-        const groundMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x808080,
-            roughness: 0.8,
-            metalness: 0.2
-        });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
+        // Create Building
+        function createBuilding() {
+            // Floor
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(20, 0.5, 20),
+                new THREE.MeshStandardMaterial({ color: 0x808080 })
+            );
+            floor.position.y = -0.25;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Walls
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const wallHeight = 4;
+            const wallThickness = 0.5;
+
+            // Front wall with door
+            const frontWallLeft = new THREE.Mesh(
+                new THREE.BoxGeometry(8, wallHeight, wallThickness),
+                wallMaterial
+            );
+            frontWallLeft.position.set(-6, wallHeight/2, -10);
+            scene.add(frontWallLeft);
+
+            const frontWallRight = new THREE.Mesh(
+                new THREE.BoxGeometry(8, wallHeight, wallThickness),
+                wallMaterial
+            );
+            frontWallRight.position.set(6, wallHeight/2, -10);
+            scene.add(frontWallRight);
+
+            const frontWallTop = new THREE.Mesh(
+                new THREE.BoxGeometry(4, wallHeight/2, wallThickness),
+                wallMaterial
+            );
+            frontWallTop.position.set(0, wallHeight*0.75, -10);
+            scene.add(frontWallTop);
+
+            // Back wall
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(20, wallHeight, wallThickness),
+                wallMaterial
+            );
+            backWall.position.set(0, wallHeight/2, 10);
+            scene.add(backWall);
+
+            // Side walls
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, 20),
+                wallMaterial
+            );
+            leftWall.position.set(-10, wallHeight/2, 0);
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, 20),
+                wallMaterial
+            );
+            rightWall.position.set(10, wallHeight/2, 0);
+            scene.add(rightWall);
+
+            // Ceiling
+            const ceiling = new THREE.Mesh(
+                new THREE.BoxGeometry(20, 0.5, 20),
+                new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+            );
+            ceiling.position.y = wallHeight;
+            ceiling.receiveShadow = true;
+            scene.add(ceiling);
+
+            // Add some windows
+            const windowMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x88ccff,
+                transparent: true,
+                opacity: 0.5
+            });
+
+            // Windows on side walls
+            for (let i = -1; i <= 1; i++) {
+                const leftWindow = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 1.5, 1),
+                    windowMaterial
+                );
+                leftWindow.position.set(-9.8, wallHeight/2, i * 5);
+                scene.add(leftWindow);
+
+                const rightWindow = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 1.5, 1),
+                    windowMaterial
+                );
+                rightWindow.position.set(9.8, wallHeight/2, i * 5);
+                scene.add(rightWindow);
+            }
+        }
+
+        createBuilding();
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040);
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
         scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -120,7 +232,12 @@
         directionalLight.castShadow = true;
         scene.add(directionalLight);
 
-        // Objects array
+        // Add point lights inside building
+        const pointLight1 = new THREE.PointLight(0xffffff, 0.5);
+        pointLight1.position.set(0, 3, 0);
+        scene.add(pointLight1);
+
+        // Objects array and controls setup (keeping your existing code)
         const objects = [];
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
@@ -223,6 +340,9 @@
                 case 'escape':
                     selectObject(null);
                     break;
+                case 't':
+                    toggleNavigationMode();
+                    break;
             }
         }
 
@@ -314,33 +434,157 @@
             objects.push(mesh);
         }
 
+        window.toggleNavigationMode = function() {
+            navigationMode = !navigationMode;
+            if (navigationMode) {
+                pointerLockControls.lock();
+                orbitControls.enabled = false;
+                if (selectedObject) selectObject(null);
+            } else {
+                pointerLockControls.unlock();
+                orbitControls.enabled = true;
+            }
+        }
+
+        // Navigation mode key handlers
+        const onKeyDown = function(event) {
+            if (navigationMode) {
+                switch (event.code) {
+                    case 'ArrowUp':
+                    case 'KeyW':
+                        moveForward = true;
+                        break;
+                    case 'ArrowDown':
+                    case 'KeyS':
+                        moveBackward = true;
+                        break;
+                    case 'ArrowLeft':
+                    case 'KeyA':
+                        moveLeft = true;
+                        break;
+                    case 'ArrowRight':
+                    case 'KeyD':
+                        moveRight = true;
+                        break;
+                    case 'Space':
+                        moveUp = true;
+                        break;
+                    case 'ShiftLeft':
+                        moveDown = true;
+                        break;
+                }
+            } else {
+                // Your existing key handlers for object manipulation
+                switch (event.key.toLowerCase()) {
+                    case 'g':
+                        transformControls.setMode('translate');
+                        break;
+                    case 'r':
+                        transformControls.setMode('rotate');
+                        break;
+                    case 's':
+                        transformControls.setMode('scale');
+                        break;
+                    case 'escape':
+                        selectObject(null);
+                        break;
+                    case 't':
+                        toggleNavigationMode();
+                        break;
+                }
+            }
+        };
+
+        const onKeyUp = function(event) {
+            if (navigationMode) {
+                switch (event.code) {
+                    case 'ArrowUp':
+                    case 'KeyW':
+                        moveForward = false;
+                        break;
+                    case 'ArrowDown':
+                    case 'KeyS':
+                        moveBackward = false;
+                        break;
+                    case 'ArrowLeft':
+                    case 'KeyA':
+                        moveLeft = false;
+                        break;
+                    case 'ArrowRight':
+                    case 'KeyD':
+                        moveRight = false;
+                        break;
+                    case 'Space':
+                        moveUp = false;
+                        break;
+                    case 'ShiftLeft':
+                        moveDown = false;
+                        break;
+                }
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+
+        pointerLockControls.addEventListener('lock', function() {
+            document.getElementById('instructions').style.display = 'none';
+        });
+
+        pointerLockControls.addEventListener('unlock', function() {
+            document.getElementById('instructions').style.display = 'block';
+        });
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
-            
-            objects.forEach(object => {
-                if (!object.userData.isDragging && !transformControls.object) {
-                    const oldY = object.position.y;
-                    object.position.y -= 0.1;
 
-                    if (checkCollision(object)) {
-                        object.position.y = Math.max(object.position.y, oldY);
+            if (navigationMode) {
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.y = Number(moveUp) - Number(moveDown);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * moveSpeed;
+                if (moveLeft || moveRight) velocity.x -= direction.x * moveSpeed;
+                if (moveUp || moveDown) velocity.y += direction.y * moveSpeed;
+
+                pointerLockControls.moveRight(-velocity.x);
+                pointerLockControls.moveForward(-velocity.z);
+                camera.position.y += velocity.y;
+
+                velocity.x *= 0.9;
+                velocity.z *= 0.9;
+                velocity.y *= 0.9;
+            } else {
+                objects.forEach(object => {
+                    if (!object.userData.isDragging && !transformControls.object) {
+                        const oldY = object.position.y;
+                        object.position.y -= 0.1;
+
+                        if (checkCollision(object)) {
+                            object.position.y = Math.max(object.position.y, oldY);
+                        }
                     }
-                }
-            });
-            
-            orbitControls.update();
+                });
+                
+                orbitControls.update();
+            }
+
             renderer.render(scene, camera);
         }
         animate();
 
         // Handle window resizing
-        window.addEventListener('resize', onWindowResize, false);
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
+        window.addEventListener('resize', onWindowResize, false);
+
+        // Keep your existing event listeners and object manipulation code
+        // ... (keep all your existing event listeners)
     </script>
 </body>
 </html> 
