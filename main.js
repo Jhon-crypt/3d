@@ -10,9 +10,134 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
+// Raycaster for object selection
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let selectedObject = null;
+let isDragging = false;
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const intersectionPoint = new THREE.Vector3();
+const offset = new THREE.Vector3();
+
 // Controls
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 const walkControls = new PointerLockControls(camera, document.body);
+
+// Event listeners for object interaction
+renderer.domElement.addEventListener('mousedown', onMouseDown);
+renderer.domElement.addEventListener('mousemove', onMouseMove);
+renderer.domElement.addEventListener('mouseup', onMouseUp);
+window.addEventListener('keydown', onKeyDown);
+
+function onMouseDown(event) {
+    if (isWalkMode) return;
+
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // Update the picking ray with the camera and mouse position
+    raycaster.setFromCamera(mouse, camera);
+
+    // Calculate objects intersecting the picking ray
+    const intersects = raycaster.intersectObjects(objects, true);
+
+    if (intersects.length > 0) {
+        orbitControls.enabled = false;
+        isDragging = true;
+        
+        // Find the top-level parent in case we clicked a child object
+        selectedObject = intersects[0].object;
+        while(selectedObject.parent && selectedObject.parent !== scene) {
+            selectedObject = selectedObject.parent;
+        }
+
+        // Calculate the offset
+        const intersectionPoint = intersects[0].point;
+        offset.copy(intersectionPoint).sub(selectedObject.position);
+
+        // Create context menu on right click
+        if (event.button === 2) {
+            event.preventDefault();
+            showContextMenu(event.clientX, event.clientY);
+        }
+    } else {
+        selectedObject = null;
+        hideContextMenu();
+    }
+}
+
+function onMouseMove(event) {
+    if (!isDragging || !selectedObject || isWalkMode) return;
+
+    // Update mouse position
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // Update the picking ray with the camera and mouse position
+    raycaster.setFromCamera(mouse, camera);
+
+    // Calculate the intersection point with the drag plane
+    if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
+        // Move the object, considering the initial offset
+        selectedObject.position.copy(intersectionPoint.sub(offset));
+        
+        // Update status bar with coordinates
+        updateCoordinates();
+    }
+}
+
+function onMouseUp() {
+    isDragging = false;
+    orbitControls.enabled = true;
+}
+
+function onKeyDown(event) {
+    if (event.key === 'Delete' && selectedObject) {
+        removeSelectedObject();
+    }
+}
+
+// Remove selected object
+function removeSelectedObject() {
+    if (selectedObject) {
+        const index = objects.indexOf(selectedObject);
+        if (index > -1) {
+            objects.splice(index, 1);
+        }
+        scene.remove(selectedObject);
+        selectedObject = null;
+        hideContextMenu();
+    }
+}
+
+// Context menu
+function showContextMenu(x, y) {
+    const contextMenu = document.querySelector('.context-menu');
+    if (!contextMenu) return;
+    
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = x + 'px';
+    contextMenu.style.top = y + 'px';
+}
+
+function hideContextMenu() {
+    const contextMenu = document.querySelector('.context-menu');
+    if (contextMenu) {
+        contextMenu.style.display = 'none';
+    }
+}
+
+// Update coordinates in status bar
+function updateCoordinates() {
+    const coords = document.getElementById('coordinates');
+    if (selectedObject) {
+        coords.textContent = `X: ${selectedObject.position.x.toFixed(2)} Y: ${selectedObject.position.y.toFixed(2)} Z: ${selectedObject.position.z.toFixed(2)}`;
+    }
+}
+
+// Prevent context menu from showing on right click
+renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0x404040);
@@ -382,6 +507,14 @@ window.zoomCamera = function(direction) {
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
+    
+    // Highlight selected object
+    objects.forEach(obj => {
+        if (obj.material && obj.material.emissive) {
+            obj.material.emissive.setHex(obj === selectedObject ? 0x333333 : 0x000000);
+        }
+    });
+    
     renderer.render(scene, camera);
 }
 
