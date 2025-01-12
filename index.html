@@ -1,762 +1,523 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Three.js World Builder</title>
+    <title>Virtual Art Gallery Builder</title>
     <style>
-        body { margin: 0; }
+        body { 
+            margin: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
         canvas { display: block; }
-        .panel {
+
+        /* Main UI Container */
+        .ui-container {
             position: fixed;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            color: white;
-            z-index: 100;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
-        .controls-container {
+
+        /* Top Bar */
+        .top-bar {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            right: 10px;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(33, 33, 33, 0.95);
             display: flex;
-            gap: 10px;
-            z-index: 100;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            pointer-events: auto;
         }
-        .panel-section {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 5px;
-            flex: 1;
-            max-width: 200px;
-        }
-        #mode-switch {
-            margin-left: auto;
-            max-width: 150px;
-        }
-        #instructions {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
+
+        .top-bar-title {
             color: white;
-            z-index: 100;
+            font-size: 1.2em;
+            margin-right: 30px;
         }
-        button {
-            margin: 5px 0;
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 50px;
+            bottom: 0;
+            width: 250px;
+            background: rgba(33, 33, 33, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            pointer-events: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-250px);
+        }
+
+        .toggle-sidebar {
+            position: fixed;
+            left: 250px;
+            top: 60px;
+            background: rgba(33, 33, 33, 0.95);
+            color: white;
+            border: none;
             padding: 8px;
             cursor: pointer;
-            background: #4CAF50;
-            border: none;
+            border-radius: 0 4px 4px 0;
+            transition: left 0.3s ease;
+        }
+
+        .toggle-sidebar.collapsed {
+            left: 0;
+        }
+
+        /* Tool Panels */
+        .tool-panel {
+            background: rgba(51, 51, 51, 0.95);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .tool-panel-header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 15px;
             color: white;
-            border-radius: 4px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .tool-panel-content {
+            padding: 10px;
+        }
+
+        /* Buttons */
+        button {
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 4px 0;
             width: 100%;
             text-align: left;
-            transition: background-color 0.3s;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
         button:hover {
-            background: #45a049;
+            background: rgba(76, 175, 80, 1);
         }
-        .button-group {
-            margin-bottom: 15px;
+
+        button i {
+            font-size: 1.2em;
+            width: 20px;
+            text-align: center;
         }
-        .button-group:last-child {
-            margin-bottom: 0;
+
+        /* Mode Controls */
+        .mode-controls {
+            position: fixed;
+            right: 20px;
+            top: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
         }
-        .button-group-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #ffffff;
-            text-transform: uppercase;
+
+        .mode-button {
+            background: rgba(33, 33, 33, 0.95);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: auto;
+            text-align: center;
+            transition: background 0.2s;
+        }
+
+        .mode-button:hover {
+            background: rgba(51, 51, 51, 0.95);
+        }
+
+        .mode-button.active {
+            background: #4CAF50;
+        }
+
+        /* Instructions Panel */
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 270px;
+            right: 20px;
+            background: rgba(33, 33, 33, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            pointer-events: auto;
+            transition: left 0.3s ease;
+        }
+
+        #instructions.sidebar-collapsed {
+            left: 20px;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: rgba(33, 33, 33, 0.95);
+            border-radius: 4px;
+            padding: 5px 0;
+            min-width: 150px;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .context-menu button {
+            padding: 8px 15px;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .context-menu button:hover {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        /* Material Picker */
+        .material-picker {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .material-swatch {
+            width: 100%;
+            padding-bottom: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .material-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 270px;
+            right: 0;
+            height: 25px;
+            background: rgba(33, 33, 33, 0.95);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
             font-size: 0.9em;
-            letter-spacing: 0.5px;
+            pointer-events: auto;
+            transition: left 0.3s ease;
+        }
+
+        .status-bar.sidebar-collapsed {
+            left: 0;
         }
     </style>
-</head>
-<body>
-    <div class="controls-container">
-        <div class="panel-section">
-            <div class="button-group">
-                <span class="button-group-label">Basic Objects</span>
-                <button onclick="window.addObject('box')">Add Box</button>
-                <button onclick="window.addObject('sphere')">Add Sphere</button>
-                <button onclick="window.addObject('cylinder')">Add Cylinder</button>
-                <button onclick="window.addObject('cone')">Add Cone</button>
-                <button onclick="window.addObject('torus')">Add Torus</button>
-            </div>
-        </div>
-
-        <div class="panel-section">
-            <div class="button-group">
-                <span class="button-group-label">Building Parts</span>
-                <button onclick="window.addBuildingPart('wall')">Add Wall</button>
-                <button onclick="window.addBuildingPart('floor')">Add Floor</button>
-                <button onclick="window.addBuildingPart('roof')">Add Roof</button>
-                <button onclick="window.addBuildingPart('door')">Add Door</button>
-                <button onclick="window.addBuildingPart('window')">Add Window</button>
-            </div>
-        </div>
-
-        <div class="panel-section">
-            <div class="button-group">
-                <span class="button-group-label">Environment</span>
-                <button onclick="window.addEnvironment('tree')">Add Tree</button>
-                <button onclick="window.addEnvironment('grass')">Add Grass</button>
-                <button onclick="window.addEnvironment('rock')">Add Rock</button>
-                <button onclick="window.addEnvironment('light')">Add Light</button>
-                <button onclick="window.addEnvironment('water')">Add Water</button>
-            </div>
-        </div>
-
-        <div class="panel-section" id="mode-switch">
-            <button onclick="window.toggleNavigationMode()">Toggle Navigation Mode (T)</button>
-        </div>
-    </div>
-
-    <div id="instructions" class="panel">
-        Object Mode: Left Click: Select/Drag | Right Click + Drag: Rotate View | Middle Click + Drag: Pan | Mouse Wheel: Zoom | Double Click: Delete<br>
-        Navigation Mode (Press T): WASD: Move | Mouse: Look | Space: Up | Shift: Down<br>
-        Building: G: Move | R: Rotate | S: Scale | Delete: Remove Selected
-    </div>
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
         }
+    }
     </script>
+    <script type="module" src="main.js"></script>
+</head>
+<body>
+    <div class="ui-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-title">Virtual Art Gallery Builder</div>
+            <button class="mode-button" onclick="window.saveScene()">
+                <i class="fas fa-save"></i> Save Scene
+            </button>
+            <button class="mode-button" onclick="window.loadScene()">
+                <i class="fas fa-folder-open"></i> Load Scene
+            </button>
+        </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { DragControls } from 'three/addons/controls/DragControls.js';
-        import { TransformControls } from 'three/addons/controls/TransformControls.js';
-        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <!-- Building Tools -->
+            <div class="tool-panel">
+                <div class="tool-panel-header">
+                    <span><i class="fas fa-building"></i> Building Tools</span>
+                </div>
+                <div class="tool-panel-content">
+                    <button onclick="window.addBuildingPart('wall')"><i class="fas fa-square"></i> Wall</button>
+                    <button onclick="window.addBuildingPart('floor')"><i class="fas fa-border-all"></i> Floor</button>
+                    <button onclick="window.addBuildingPart('roof')"><i class="fas fa-home"></i> Roof</button>
+                    <button onclick="window.addBuildingPart('door')"><i class="fas fa-door-open"></i> Door</button>
+                    <button onclick="window.addBuildingPart('window')"><i class="fas fa-window-maximize"></i> Window</button>
+                </div>
+            </div>
 
-        // Make functions available globally
-        window.THREE = THREE;
+            <!-- Art Gallery Items -->
+            <div class="tool-panel">
+                <div class="tool-panel-header">
+                    <span><i class="fas fa-paint-brush"></i> Gallery Items</span>
+                </div>
+                <div class="tool-panel-content">
+                    <button onclick="window.addGalleryItem('painting-frame')"><i class="fas fa-image"></i> Picture Frame</button>
+                    <button onclick="window.addGalleryItem('pedestal')"><i class="fas fa-cube"></i> Pedestal</button>
+                    <button onclick="window.addGalleryItem('spotlight')"><i class="fas fa-lightbulb"></i> Spotlight</button>
+                    <button onclick="window.addGalleryItem('bench')"><i class="fas fa-couch"></i> Bench</button>
+                </div>
+            </div>
 
-        // Scene setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
+            <!-- Environment -->
+            <div class="tool-panel">
+                <div class="tool-panel-header">
+                    <span><i class="fas fa-tree"></i> Environment</span>
+                </div>
+                <div class="tool-panel-content">
+                    <button onclick="window.addEnvironment('tree')"><i class="fas fa-tree"></i> Tree</button>
+                    <button onclick="window.addEnvironment('grass')"><i class="fas fa-leaf"></i> Grass</button>
+                    <button onclick="window.addEnvironment('rock')"><i class="fas fa-mountain"></i> Rock</button>
+                    <button onclick="window.addEnvironment('light')"><i class="fas fa-lightbulb"></i> Light</button>
+                    <button onclick="window.addEnvironment('water')"><i class="fas fa-water"></i> Water</button>
+                </div>
+            </div>
 
-        // Camera setup
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(5, 5, 5);
-        camera.lookAt(0, 0, 0);
+            <!-- Materials -->
+            <div class="tool-panel">
+                <div class="tool-panel-header">
+                    <span><i class="fas fa-palette"></i> Materials</span>
+                </div>
+                <div class="tool-panel-content">
+                    <div class="material-picker">
+                        <!-- Material swatches will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Renderer setup
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
+        <!-- Sidebar Toggle -->
+        <button class="toggle-sidebar" onclick="toggleSidebar()">
+            <i class="fas fa-chevron-left"></i>
+        </button>
 
-        // Controls
-        const orbitControls = new OrbitControls(camera, renderer.domElement);
-        orbitControls.enableDamping = true;
-        orbitControls.dampingFactor = 0.05;
-        orbitControls.mouseButtons = {
-            LEFT: null,
-            MIDDLE: THREE.MOUSE.PAN,
-            RIGHT: THREE.MOUSE.ROTATE
-        };
+        <!-- Mode Controls -->
+        <div class="mode-controls">
+            <button class="mode-button active" onclick="window.setMode('build')">
+                <i class="fas fa-hammer"></i> Build Mode
+            </button>
+            <button class="mode-button" onclick="window.setMode('paint')">
+                <i class="fas fa-paint-brush"></i> Paint Mode
+            </button>
+            <button class="mode-button" onclick="window.toggleNavigationMode()">
+                <i class="fas fa-walking"></i> Walk Mode
+            </button>
+            <button class="mode-button" onclick="window.zoomCamera('in')">
+                <i class="fas fa-search-plus"></i> Zoom In
+            </button>
+            <button class="mode-button" onclick="window.zoomCamera('out')">
+                <i class="fas fa-search-minus"></i> Zoom Out
+            </button>
+        </div>
 
-        // First Person Controls
-        const pointerLockControls = new PointerLockControls(camera, document.body);
-        let navigationMode = false;
-        const moveSpeed = 0.15;
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        let moveForward = false;
-        let moveBackward = false;
-        let moveLeft = false;
-        let moveRight = false;
-        let moveUp = false;
-        let moveDown = false;
+        <!-- Instructions -->
+        <div id="instructions">
+            <div style="margin-bottom: 8px;"><i class="fas fa-info-circle"></i> Controls:</div>
+            Build Mode: Left Click: Select/Drag | Right Click + Drag: Rotate View | Middle Click + Drag: Pan | Mouse Wheel: Zoom<br>
+            Paint Mode: Left Click: Apply Material | Right Click: Pick Material<br>
+            Walk Mode: WASD: Move | Mouse: Look | Space: Up | Shift: Down | ESC: Exit
+        </div>
 
-        // Transform Controls
-        const transformControls = new TransformControls(camera, renderer.domElement);
-        transformControls.addEventListener('dragging-changed', function (event) {
-            orbitControls.enabled = !event.value;
-        });
-        scene.add(transformControls);
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="coordinates">X: 0.00 Y: 0.00 Z: 0.00</span>
+        </div>
+    </div>
 
-        // Create Building
-        function createBuilding() {
-            // Floor
-            const floor = new THREE.Mesh(
-                new THREE.BoxGeometry(20, 0.5, 20),
-                new THREE.MeshStandardMaterial({ color: 0x808080 })
-            );
-            floor.position.y = -0.25;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            // Walls
-            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-            const wallHeight = 4;
-            const wallThickness = 0.5;
-
-            // Front wall with door
-            const frontWallLeft = new THREE.Mesh(
-                new THREE.BoxGeometry(8, wallHeight, wallThickness),
-                wallMaterial
-            );
-            frontWallLeft.position.set(-6, wallHeight/2, -10);
-            scene.add(frontWallLeft);
-
-            const frontWallRight = new THREE.Mesh(
-                new THREE.BoxGeometry(8, wallHeight, wallThickness),
-                wallMaterial
-            );
-            frontWallRight.position.set(6, wallHeight/2, -10);
-            scene.add(frontWallRight);
-
-            const frontWallTop = new THREE.Mesh(
-                new THREE.BoxGeometry(4, wallHeight/2, wallThickness),
-                wallMaterial
-            );
-            frontWallTop.position.set(0, wallHeight*0.75, -10);
-            scene.add(frontWallTop);
-
-            // Back wall
-            const backWall = new THREE.Mesh(
-                new THREE.BoxGeometry(20, wallHeight, wallThickness),
-                wallMaterial
-            );
-            backWall.position.set(0, wallHeight/2, 10);
-            scene.add(backWall);
-
-            // Side walls
-            const leftWall = new THREE.Mesh(
-                new THREE.BoxGeometry(wallThickness, wallHeight, 20),
-                wallMaterial
-            );
-            leftWall.position.set(-10, wallHeight/2, 0);
-            scene.add(leftWall);
-
-            const rightWall = new THREE.Mesh(
-                new THREE.BoxGeometry(wallThickness, wallHeight, 20),
-                wallMaterial
-            );
-            rightWall.position.set(10, wallHeight/2, 0);
-            scene.add(rightWall);
-
-            // Ceiling
-            const ceiling = new THREE.Mesh(
-                new THREE.BoxGeometry(20, 0.5, 20),
-                new THREE.MeshStandardMaterial({ color: 0xeeeeee })
-            );
-            ceiling.position.y = wallHeight;
-            ceiling.receiveShadow = true;
-            scene.add(ceiling);
-
-            // Add some windows
-            const windowMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x88ccff,
-                transparent: true,
-                opacity: 0.5
-            });
-
-            // Windows on side walls
-            for (let i = -1; i <= 1; i++) {
-                const leftWindow = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.5, 1.5, 1),
-                    windowMaterial
-                );
-                leftWindow.position.set(-9.8, wallHeight/2, i * 5);
-                scene.add(leftWindow);
-
-                const rightWindow = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.5, 1.5, 1),
-                    windowMaterial
-                );
-                rightWindow.position.set(9.8, wallHeight/2, i * 5);
-                scene.add(rightWindow);
+    <!-- Keep your existing script imports and Three.js code -->
+    <script>
+        // Sidebar toggle functionality
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleButton = document.querySelector('.toggle-sidebar');
+            const instructions = document.getElementById('instructions');
+            const statusBar = document.querySelector('.status-bar');
+            
+            sidebar.classList.toggle('collapsed');
+            toggleButton.classList.toggle('collapsed');
+            instructions.classList.toggle('sidebar-collapsed');
+            statusBar.classList.toggle('sidebar-collapsed');
+            
+            const icon = toggleButton.querySelector('i');
+            if (sidebar.classList.contains('collapsed')) {
+                icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
+            } else {
+                icon.classList.replace('fa-chevron-right', 'fa-chevron-left');
             }
         }
 
-        createBuilding();
+        // Gallery item creation functions
+        window.addGalleryItem = function(type) {
+            let object;
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 1);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 5, 5);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
-
-        // Add point lights inside building
-        const pointLight1 = new THREE.PointLight(0xffffff, 0.5);
-        pointLight1.position.set(0, 3, 0);
-        scene.add(pointLight1);
-
-        // Objects array and controls setup
-        const objects = [];
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let selectedObject = null;
-        const originalMaterials = new Map();
-
-        function getObjectHeight(object) {
-            const box = new THREE.Box3().setFromObject(object);
-            return box.max.y - box.min.y;
-        }
-
-        function checkCollision(object) {
-            const box1 = new THREE.Box3().setFromObject(object);
-            const objectHeight = box1.max.y - box1.min.y;
-
-            // Check ground collision
-            if (object.position.y <= objectHeight / 2) {
-                object.position.y = objectHeight / 2;
-                return true;
-            }
-
-            // Check collision with other objects
-            for (let other of objects) {
-                if (other !== object) {
-                    const box2 = new THREE.Box3().setFromObject(other);
+            switch(type) {
+                case 'painting-frame':
+                    // Create frame
+                    const frame = new THREE.Group();
                     
-                    if (box1.intersectsBox(box2)) {
-                        const penetrationY = box1.min.y - box2.max.y;
-                        if (Math.abs(penetrationY) < 0.1) {
-                            object.position.y = box2.max.y + objectHeight / 2;
-                        }
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function highlightObject(object) {
-            if (!originalMaterials.has(object)) {
-                originalMaterials.set(object, object.material.clone());
-                const highlightMaterial = object.material.clone();
-                highlightMaterial.emissive.setHex(0x666600);
-                object.material = highlightMaterial;
-            }
-        }
-
-        function unhighlightObject(object) {
-            if (originalMaterials.has(object)) {
-                object.material = originalMaterials.get(object);
-                originalMaterials.delete(object);
-            }
-        }
-
-        function selectObject(object) {
-            if (selectedObject === object) return;
-            
-            if (selectedObject) {
-                unhighlightObject(selectedObject);
-            }
-            
-            selectedObject = object;
-            if (selectedObject) {
-                highlightObject(selectedObject);
-                transformControls.attach(selectedObject);
-            } else {
-                transformControls.detach();
-            }
-        }
-
-        // Click handler for object selection
-        function onClick(event) {
-            event.preventDefault();
-            
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(objects);
-
-            if (intersects.length > 0) {
-                selectObject(intersects[0].object);
-            } else {
-                selectObject(null);
-            }
-        }
-
-        // Key handler for transform controls
-        function onKeyDown(event) {
-            if (navigationMode) {
-                switch (event.code) {
-                    case 'ArrowUp':
-                    case 'KeyW':
-                        moveForward = true;
-                        break;
-                    case 'ArrowDown':
-                    case 'KeyS':
-                        moveBackward = true;
-                        break;
-                    case 'ArrowLeft':
-                    case 'KeyA':
-                        moveLeft = true;
-                        break;
-                    case 'ArrowRight':
-                    case 'KeyD':
-                        moveRight = true;
-                        break;
-                    case 'Space':
-                        moveUp = true;
-                        break;
-                    case 'ShiftLeft':
-                        moveDown = true;
-                        break;
-                }
-            } else {
-                switch (event.key.toLowerCase()) {
-                    case 'g':
-                        transformControls.setMode('translate');
-                        break;
-                    case 'r':
-                        transformControls.setMode('rotate');
-                        break;
-                    case 's':
-                        transformControls.setMode('scale');
-                        break;
-                    case 'escape':
-                        selectObject(null);
-                        break;
-                    case 't':
-                        window.toggleNavigationMode();
-                        break;
-                }
-            }
-        }
-
-        function onKeyUp(event) {
-            if (navigationMode) {
-                switch (event.code) {
-                    case 'ArrowUp':
-                    case 'KeyW':
-                        moveForward = false;
-                        break;
-                    case 'ArrowDown':
-                    case 'KeyS':
-                        moveBackward = false;
-                        break;
-                    case 'ArrowLeft':
-                    case 'KeyA':
-                        moveLeft = false;
-                        break;
-                    case 'ArrowRight':
-                    case 'KeyD':
-                        moveRight = false;
-                        break;
-                    case 'Space':
-                        moveUp = false;
-                        break;
-                    case 'ShiftLeft':
-                        moveDown = false;
-                        break;
-                }
-            }
-        }
-
-        const dragControls = new DragControls(objects, camera, renderer.domElement);
-
-        dragControls.addEventListener('dragstart', function (event) {
-            orbitControls.enabled = false;
-            event.object.userData.isDragging = true;
-            selectObject(event.object);
-        });
-
-        dragControls.addEventListener('drag', function (event) {
-            const object = event.object;
-            const objectHeight = getObjectHeight(object);
-            
-            if (object.position.y < objectHeight / 2) {
-                object.position.y = objectHeight / 2;
-            }
-        });
-
-        dragControls.addEventListener('dragend', function (event) {
-            orbitControls.enabled = true;
-            event.object.userData.isDragging = false;
-        });
-
-        // Delete object on double click
-        function onDoubleClick(event) {
-            event.preventDefault();
-            
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(objects);
-
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                if (selectedObject === object) {
-                    selectObject(null);
-                }
-                scene.remove(object);
-                objects.splice(objects.indexOf(object), 1);
-            }
-        }
-
-        // Add event listeners
-        renderer.domElement.addEventListener('dblclick', onDoubleClick);
-        renderer.domElement.addEventListener('click', onClick);
-        document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
-
-        pointerLockControls.addEventListener('lock', function() {
-            document.getElementById('instructions').style.display = 'none';
-        });
-
-        pointerLockControls.addEventListener('unlock', function() {
-            document.getElementById('instructions').style.display = 'block';
-        });
-
-        // Function to add objects
-        window.addObject = function(type) {
-            let geometry;
-
-            switch(type) {
-                case 'box':
-                    geometry = new THREE.BoxGeometry(1, 1, 1);
-                    break;
-                case 'sphere':
-                    geometry = new THREE.SphereGeometry(0.5, 32, 32);
-                    break;
-                case 'cylinder':
-                    geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
-                    break;
-                case 'cone':
-                    geometry = new THREE.ConeGeometry(0.5, 1, 32);
-                    break;
-                case 'torus':
-                    geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
-                    break;
-            }
-
-            const material = new THREE.MeshStandardMaterial({
-                color: Math.random() * 0xffffff,
-                roughness: 0.7,
-                metalness: 0.3
-            });
-
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(
-                (Math.random() - 0.5) * 4,
-                5,
-                (Math.random() - 0.5) * 4
-            );
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            scene.add(mesh);
-            objects.push(mesh);
-        }
-
-        window.toggleNavigationMode = function() {
-            navigationMode = !navigationMode;
-            if (navigationMode) {
-                pointerLockControls.lock();
-                orbitControls.enabled = false;
-                if (selectedObject) selectObject(null);
-            } else {
-                pointerLockControls.unlock();
-                orbitControls.enabled = true;
-            }
-        }
-
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (navigationMode) {
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.y = Number(moveUp) - Number(moveDown);
-                direction.normalize();
-
-                if (moveForward || moveBackward) velocity.z -= direction.z * moveSpeed;
-                if (moveLeft || moveRight) velocity.x -= direction.x * moveSpeed;
-                if (moveUp || moveDown) velocity.y += direction.y * moveSpeed;
-
-                pointerLockControls.moveRight(-velocity.x);
-                pointerLockControls.moveForward(-velocity.z);
-                camera.position.y += velocity.y;
-
-                velocity.x *= 0.9;
-                velocity.z *= 0.9;
-                velocity.y *= 0.9;
-            } else {
-                objects.forEach(object => {
-                    if (!object.userData.isDragging && !transformControls.object) {
-                        const oldY = object.position.y;
-                        object.position.y -= 0.1;
-
-                        if (checkCollision(object)) {
-                            object.position.y = Math.max(object.position.y, oldY);
-                        }
-                    }
-                });
-                
-                orbitControls.update();
-            }
-
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // Handle window resizing
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        window.addEventListener('resize', onWindowResize, false);
-
-        // Building part creation functions
-        window.addBuildingPart = function(type) {
-            let geometry, material;
-            
-            switch(type) {
-                case 'wall':
-                    geometry = new THREE.BoxGeometry(2, 3, 0.2);
-                    material = new THREE.MeshStandardMaterial({
-                        color: 0xcccccc,
-                        roughness: 0.7,
-                        metalness: 0.2
-                    });
-                    break;
-                case 'floor':
-                    geometry = new THREE.BoxGeometry(4, 0.2, 4);
-                    material = new THREE.MeshStandardMaterial({
-                        color: 0x808080,
-                        roughness: 0.8,
-                        metalness: 0.2
-                    });
-                    break;
-                case 'roof':
-                    geometry = new THREE.ConeGeometry(3, 2, 4);
-                    material = new THREE.MeshStandardMaterial({
-                        color: 0x8b4513,
-                        roughness: 0.6,
-                        metalness: 0.1
-                    });
-                    break;
-                case 'door':
-                    geometry = new THREE.BoxGeometry(1, 2, 0.1);
-                    material = new THREE.MeshStandardMaterial({
+                    // Frame border
+                    const borderMaterial = new THREE.MeshStandardMaterial({ 
                         color: 0x4a3c2b,
                         roughness: 0.5,
                         metalness: 0.3
                     });
-                    break;
-                case 'window':
-                    geometry = new THREE.BoxGeometry(1, 1, 0.1);
-                    material = new THREE.MeshStandardMaterial({
-                        color: 0x88ccff,
-                        transparent: true,
-                        opacity: 0.5,
-                        roughness: 0.2,
-                        metalness: 0.5
-                    });
-                    break;
-            }
-
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(
-                (Math.random() - 0.5) * 4,
-                2,
-                (Math.random() - 0.5) * 4
-            );
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            scene.add(mesh);
-            objects.push(mesh);
-        }
-
-        // Environment object creation functions
-        window.addEnvironment = function(type) {
-            let object;
-
-            switch(type) {
-                case 'tree':
-                    // Create a simple tree with trunk and leaves
-                    const trunk = new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.2, 0.2, 2, 8),
-                        new THREE.MeshStandardMaterial({ color: 0x4a3c2b })
-                    );
-                    const leaves = new THREE.Mesh(
-                        new THREE.ConeGeometry(1, 2, 8),
-                        new THREE.MeshStandardMaterial({ color: 0x228b22 })
-                    );
-                    leaves.position.y = 2;
                     
-                    object = new THREE.Group();
-                    object.add(trunk);
-                    object.add(leaves);
+                    // Top and bottom
+                    const horizontalGeometry = new THREE.BoxGeometry(2, 0.1, 0.1);
+                    const topBorder = new THREE.Mesh(horizontalGeometry, borderMaterial);
+                    const bottomBorder = new THREE.Mesh(horizontalGeometry, borderMaterial);
+                    topBorder.position.y = 1.5;
+                    bottomBorder.position.y = -1.5;
+                    
+                    // Left and right
+                    const verticalGeometry = new THREE.BoxGeometry(0.1, 3, 0.1);
+                    const leftBorder = new THREE.Mesh(verticalGeometry, borderMaterial);
+                    const rightBorder = new THREE.Mesh(verticalGeometry, borderMaterial);
+                    leftBorder.position.x = -1;
+                    rightBorder.position.x = 1;
+                    
+                    // Canvas (placeholder for artwork)
+                    const canvasGeometry = new THREE.PlaneGeometry(1.9, 2.9);
+                    const canvasMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        roughness: 0.9,
+                        metalness: 0.1
+                    });
+                    const canvas = new THREE.Mesh(canvasGeometry, canvasMaterial);
+                    canvas.position.z = -0.05;
+                    
+                    frame.add(topBorder, bottomBorder, leftBorder, rightBorder, canvas);
+                    object = frame;
                     break;
 
-                case 'grass':
-                    // Create a patch of grass
-                    object = new THREE.Mesh(
-                        new THREE.PlaneGeometry(1, 1),
-                        new THREE.MeshStandardMaterial({ 
-                            color: 0x90EE90,
-                            side: THREE.DoubleSide
-                        })
-                    );
-                    object.rotation.x = -Math.PI / 2;
+                case 'pedestal':
+                    const pedestalGroup = new THREE.Group();
+                    
+                    // Base
+                    const baseGeometry = new THREE.BoxGeometry(1, 0.2, 1);
+                    const baseMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xcccccc,
+                        roughness: 0.2,
+                        metalness: 0.8
+                    });
+                    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                    
+                    // Column
+                    const columnGeometry = new THREE.BoxGeometry(0.6, 1.2, 0.6);
+                    const column = new THREE.Mesh(columnGeometry, baseMaterial);
+                    column.position.y = 0.7;
+                    
+                    // Top
+                    const topGeometry = new THREE.BoxGeometry(0.8, 0.1, 0.8);
+                    const top = new THREE.Mesh(topGeometry, baseMaterial);
+                    top.position.y = 1.35;
+                    
+                    pedestalGroup.add(base, column, top);
+                    object = pedestalGroup;
                     break;
 
-                case 'rock':
-                    // Create a random rock shape
-                    object = new THREE.Mesh(
-                        new THREE.DodecahedronGeometry(0.5, 0),
-                        new THREE.MeshStandardMaterial({ 
-                            color: 0x808080,
-                            roughness: 0.9
-                        })
-                    );
+                case 'spotlight':
+                    const spotlightGroup = new THREE.Group();
+                    
+                    // Light housing
+                    const housingGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.4, 32);
+                    const housingMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x333333,
+                        roughness: 0.5,
+                        metalness: 0.8
+                    });
+                    const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+                    
+                    // Light bulb
+                    const bulbGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                    const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+                    const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+                    bulb.position.y = -0.2;
+                    
+                    // Add spotlight
+                    const light = new THREE.SpotLight(0xffffff, 1);
+                    light.position.copy(bulb.position);
+                    light.target.position.y = -1;
+                    light.angle = Math.PI / 6;
+                    light.penumbra = 0.2;
+                    light.castShadow = true;
+                    
+                    spotlightGroup.add(housing, bulb, light, light.target);
+                    object = spotlightGroup;
                     break;
 
-                case 'light':
-                    // Add a point light with a visible bulb
-                    const bulb = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.1, 16, 16),
-                        new THREE.MeshBasicMaterial({ color: 0xffff00 })
-                    );
-                    const light = new THREE.PointLight(0xffff00, 1, 10);
-                    bulb.add(light);
-                    object = bulb;
-                    break;
-
-                case 'water':
-                    // Create a simple water surface
-                    object = new THREE.Mesh(
-                        new THREE.PlaneGeometry(4, 4, 32, 32),
-                        new THREE.MeshStandardMaterial({ 
-                            color: 0x0077be,
-                            transparent: true,
-                            opacity: 0.6,
-                            roughness: 0.2,
-                            metalness: 0.8
-                        })
-                    );
-                    object.rotation.x = -Math.PI / 2;
+                case 'bench':
+                    const benchGroup = new THREE.Group();
+                    
+                    // Seat
+                    const seatGeometry = new THREE.BoxGeometry(2, 0.1, 0.6);
+                    const woodMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x8b4513,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
+                    const seat = new THREE.Mesh(seatGeometry, woodMaterial);
+                    seat.position.y = 0.4;
+                    
+                    // Legs
+                    const legGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.1);
+                    const metalMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x666666,
+                        roughness: 0.4,
+                        metalness: 0.8
+                    });
+                    
+                    const positions = [
+                        [-0.9, 0, -0.25],
+                        [-0.9, 0, 0.25],
+                        [0.9, 0, -0.25],
+                        [0.9, 0, 0.25]
+                    ];
+                    
+                    positions.forEach(pos => {
+                        const leg = new THREE.Mesh(legGeometry, metalMaterial);
+                        leg.position.set(pos[0], pos[1], pos[2]);
+                        benchGroup.add(leg);
+                    });
+                    
+                    benchGroup.add(seat);
+                    object = benchGroup;
                     break;
             }
 
             if (object) {
                 object.position.set(
                     (Math.random() - 0.5) * 8,
-                    type === 'grass' || type === 'water' ? 0.01 : 1,
+                    type === 'spotlight' ? 3 : 0,
                     (Math.random() - 0.5) * 8
                 );
                 object.castShadow = true;
@@ -765,6 +526,98 @@
                 objects.push(object);
             }
         }
+
+        // Mode management
+        let currentMode = 'build';
+        window.setMode = function(mode) {
+            currentMode = mode;
+            
+            // Update UI
+            document.querySelectorAll('.mode-button').forEach(button => {
+                button.classList.remove('active');
+                if (button.textContent.toLowerCase().includes(mode)) {
+                    button.classList.add('active');
+                }
+            });
+
+            // Update controls based on mode
+            switch(mode) {
+                case 'build':
+                    orbitControls.enabled = true;
+                    break;
+                case 'paint':
+                    orbitControls.enabled = true;
+                    break;
+                case 'walk':
+                    orbitControls.enabled = false;
+                    break;
+            }
+        }
+
+        // Scene management
+        window.saveScene = function() {
+            const sceneData = {
+                objects: objects.map(obj => ({
+                    type: obj.userData.type,
+                    position: obj.position.toArray(),
+                    rotation: obj.rotation.toArray(),
+                    scale: obj.scale.toArray(),
+                    material: obj.material ? {
+                        color: obj.material.color.getHex(),
+                        roughness: obj.material.roughness,
+                        metalness: obj.material.metalness
+                    } : null
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(sceneData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gallery-scene.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        window.loadScene = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const sceneData = JSON.parse(e.target.result);
+                    // Clear existing objects
+                    objects.forEach(obj => scene.remove(obj));
+                    objects.length = 0;
+                    // Load new objects
+                    sceneData.objects.forEach(objData => {
+                        // Recreate objects based on their type
+                        // This would need to be implemented based on your object types
+                    });
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Update coordinates in status bar
+        function updateCoordinates() {
+            const coords = document.getElementById('coordinates');
+            if (selectedObject) {
+                coords.textContent = `X: ${selectedObject.position.x.toFixed(2)} Y: ${selectedObject.position.y.toFixed(2)} Z: ${selectedObject.position.z.toFixed(2)}`;
+            }
+        }
+
+        // Add to your animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCoordinates();
+            // ... rest of your animation code
+        }
     </script>
+
+    <!-- Keep your existing Three.js script -->
 </body>
 </html> 
