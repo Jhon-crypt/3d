@@ -101,7 +101,7 @@ function onKeyDown(event) {
 }
 
 // Remove selected object
-function removeSelectedObject() {
+window.removeSelectedObject = function() {
     if (selectedObject) {
         const index = objects.indexOf(selectedObject);
         if (index > -1) {
@@ -111,7 +111,43 @@ function removeSelectedObject() {
         selectedObject = null;
         hideContextMenu();
     }
-}
+};
+
+// Duplicate selected object
+window.duplicateSelectedObject = function() {
+    if (!selectedObject) return;
+
+    let newObject;
+    const type = selectedObject.userData.type;
+
+    // Clone based on object type
+    if (type === 'wall' || type === 'floor' || type === 'roof' || type === 'door' || type === 'window') {
+        newObject = window.addBuildingPart(type);
+    } else if (type === 'painting-frame' || type === 'pedestal' || type === 'spotlight' || type === 'bench') {
+        newObject = window.addGalleryItem(type);
+    } else if (type === 'tree' || type === 'grass' || type === 'rock' || type === 'water' || type === 'light') {
+        newObject = window.addEnvironment(type);
+    }
+
+    if (newObject) {
+        // Position slightly offset from the original
+        newObject.position.copy(selectedObject.position);
+        newObject.position.x += 1;
+        newObject.position.z += 1;
+        
+        // Copy rotation
+        newObject.rotation.copy(selectedObject.rotation);
+        
+        // Copy scale
+        newObject.scale.copy(selectedObject.scale);
+        
+        // Select the new object
+        selectedObject = newObject;
+        updateCoordinates();
+    }
+    
+    hideContextMenu();
+};
 
 // Context menu
 function showContextMenu(x, y) {
