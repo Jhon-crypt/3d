@@ -145,7 +145,7 @@ window.toggleNavigationMode = function() {
 window.zoomCamera = function(direction) {
     const zoomSpeed = 2;
     const minDistance = 2;
-    const maxDistance = 50;
+    const maxDistance = 200;
     
     if (direction === 'in') {
         // Move camera closer
