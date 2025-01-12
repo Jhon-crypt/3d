@@ -13,85 +13,106 @@
             color: white;
             z-index: 100;
         }
-        #controls {
+        .controls-container {
+            position: fixed;
             top: 10px;
             left: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
         }
-        #building-controls {
-            top: 10px;
-            left: 200px;
-        }
-        #environment-controls {
-            top: 10px;
-            left: 400px;
+        .panel-section {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            flex: 1;
+            max-width: 200px;
         }
         #mode-switch {
-            top: 10px;
-            right: 10px;
+            margin-left: auto;
+            max-width: 150px;
         }
         #instructions {
+            position: fixed;
             bottom: 10px;
             left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            z-index: 100;
         }
         button {
-            margin: 5px;
+            margin: 5px 0;
             padding: 8px;
             cursor: pointer;
             background: #4CAF50;
             border: none;
             color: white;
             border-radius: 4px;
-            min-width: 100px;
+            width: 100%;
+            text-align: left;
+            transition: background-color 0.3s;
         }
         button:hover {
             background: #45a049;
         }
         .button-group {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .button-group:last-child {
+            margin-bottom: 0;
         }
         .button-group-label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: bold;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
-    <div id="controls" class="panel">
-        <div class="button-group">
-            <span class="button-group-label">Basic Objects</span>
-            <button onclick="window.addObject('box')">Add Box</button>
-            <button onclick="window.addObject('sphere')">Add Sphere</button>
-            <button onclick="window.addObject('cylinder')">Add Cylinder</button>
-            <button onclick="window.addObject('cone')">Add Cone</button>
-            <button onclick="window.addObject('torus')">Add Torus</button>
+    <div class="controls-container">
+        <div class="panel-section">
+            <div class="button-group">
+                <span class="button-group-label">Basic Objects</span>
+                <button onclick="window.addObject('box')">Add Box</button>
+                <button onclick="window.addObject('sphere')">Add Sphere</button>
+                <button onclick="window.addObject('cylinder')">Add Cylinder</button>
+                <button onclick="window.addObject('cone')">Add Cone</button>
+                <button onclick="window.addObject('torus')">Add Torus</button>
+            </div>
         </div>
-    </div>
 
-    <div id="building-controls" class="panel">
-        <div class="button-group">
-            <span class="button-group-label">Building Parts</span>
-            <button onclick="window.addBuildingPart('wall')">Add Wall</button>
-            <button onclick="window.addBuildingPart('floor')">Add Floor</button>
-            <button onclick="window.addBuildingPart('roof')">Add Roof</button>
-            <button onclick="window.addBuildingPart('door')">Add Door</button>
-            <button onclick="window.addBuildingPart('window')">Add Window</button>
+        <div class="panel-section">
+            <div class="button-group">
+                <span class="button-group-label">Building Parts</span>
+                <button onclick="window.addBuildingPart('wall')">Add Wall</button>
+                <button onclick="window.addBuildingPart('floor')">Add Floor</button>
+                <button onclick="window.addBuildingPart('roof')">Add Roof</button>
+                <button onclick="window.addBuildingPart('door')">Add Door</button>
+                <button onclick="window.addBuildingPart('window')">Add Window</button>
+            </div>
         </div>
-    </div>
 
-    <div id="environment-controls" class="panel">
-        <div class="button-group">
-            <span class="button-group-label">Environment</span>
-            <button onclick="window.addEnvironment('tree')">Add Tree</button>
-            <button onclick="window.addEnvironment('grass')">Add Grass</button>
-            <button onclick="window.addEnvironment('rock')">Add Rock</button>
-            <button onclick="window.addEnvironment('light')">Add Light</button>
-            <button onclick="window.addEnvironment('water')">Add Water</button>
+        <div class="panel-section">
+            <div class="button-group">
+                <span class="button-group-label">Environment</span>
+                <button onclick="window.addEnvironment('tree')">Add Tree</button>
+                <button onclick="window.addEnvironment('grass')">Add Grass</button>
+                <button onclick="window.addEnvironment('rock')">Add Rock</button>
+                <button onclick="window.addEnvironment('light')">Add Light</button>
+                <button onclick="window.addEnvironment('water')">Add Water</button>
+            </div>
         </div>
-    </div>
 
-    <div id="mode-switch" class="panel">
-        <button onclick="window.toggleNavigationMode()">Toggle Navigation Mode (T)</button>
+        <div class="panel-section" id="mode-switch">
+            <button onclick="window.toggleNavigationMode()">Toggle Navigation Mode (T)</button>
+        </div>
     </div>
 
     <div id="instructions" class="panel">
