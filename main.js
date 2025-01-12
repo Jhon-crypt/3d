@@ -79,12 +79,166 @@ window.addBuildingPart = function(type) {
     }
 
     if (object) {
-        object.position.set(0, object.geometry.parameters.height / 2, 0);
+        object.position.y = object.geometry.parameters.height / 2;
         object.castShadow = true;
         object.receiveShadow = true;
         object.userData.type = type;
         scene.add(object);
         objects.push(object);
+        return object;
+    }
+};
+
+// Gallery items creation function
+window.addGalleryItem = function(type) {
+    let object;
+
+    switch(type) {
+        case 'painting-frame':
+            const frame = new THREE.Group();
+            
+            // Frame border
+            const borderMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a3c2b,
+                roughness: 0.5,
+                metalness: 0.3
+            });
+            
+            // Top and bottom
+            const horizontalGeometry = new THREE.BoxGeometry(2, 0.1, 0.1);
+            const topBorder = new THREE.Mesh(horizontalGeometry, borderMaterial);
+            const bottomBorder = new THREE.Mesh(horizontalGeometry, borderMaterial);
+            topBorder.position.y = 1.5;
+            bottomBorder.position.y = -1.5;
+            
+            // Left and right
+            const verticalGeometry = new THREE.BoxGeometry(0.1, 3, 0.1);
+            const leftBorder = new THREE.Mesh(verticalGeometry, borderMaterial);
+            const rightBorder = new THREE.Mesh(verticalGeometry, borderMaterial);
+            leftBorder.position.x = -1;
+            rightBorder.position.x = 1;
+            
+            // Canvas
+            const canvasGeometry = new THREE.PlaneGeometry(1.9, 2.9);
+            const canvasMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const canvas = new THREE.Mesh(canvasGeometry, canvasMaterial);
+            canvas.position.z = -0.05;
+            
+            frame.add(topBorder, bottomBorder, leftBorder, rightBorder, canvas);
+            object = frame;
+            break;
+
+        case 'pedestal':
+            const pedestalGroup = new THREE.Group();
+            
+            // Base
+            const baseGeometry = new THREE.BoxGeometry(1, 0.2, 1);
+            const baseMaterial = new THREE.MeshStandardMaterial({
+                color: 0xcccccc,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            
+            // Column
+            const columnGeometry = new THREE.BoxGeometry(0.6, 1.2, 0.6);
+            const column = new THREE.Mesh(columnGeometry, baseMaterial);
+            column.position.y = 0.7;
+            
+            // Top
+            const topGeometry = new THREE.BoxGeometry(0.8, 0.1, 0.8);
+            const top = new THREE.Mesh(topGeometry, baseMaterial);
+            top.position.y = 1.35;
+            
+            pedestalGroup.add(base, column, top);
+            object = pedestalGroup;
+            break;
+
+        case 'spotlight':
+            const spotlightGroup = new THREE.Group();
+            
+            // Light housing
+            const housingGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.4, 32);
+            const housingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                roughness: 0.5,
+                metalness: 0.8
+            });
+            const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+            
+            // Light bulb
+            const bulbGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+            const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+            bulb.position.y = -0.2;
+            
+            // Add spotlight
+            const light = new THREE.SpotLight(0xffffff, 1);
+            light.position.copy(bulb.position);
+            light.target.position.y = -1;
+            light.angle = Math.PI / 6;
+            light.penumbra = 0.2;
+            light.castShadow = true;
+            
+            spotlightGroup.add(housing, bulb, light, light.target);
+            object = spotlightGroup;
+            break;
+
+        case 'bench':
+            const benchGroup = new THREE.Group();
+            
+            // Seat
+            const seatGeometry = new THREE.BoxGeometry(2, 0.1, 0.6);
+            const woodMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8b4513,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const seat = new THREE.Mesh(seatGeometry, woodMaterial);
+            seat.position.y = 0.4;
+            
+            // Legs
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.1);
+            const metalMaterial = new THREE.MeshStandardMaterial({
+                color: 0x666666,
+                roughness: 0.4,
+                metalness: 0.8
+            });
+            
+            const positions = [
+                [-0.9, 0, -0.25],
+                [-0.9, 0, 0.25],
+                [0.9, 0, -0.25],
+                [0.9, 0, 0.25]
+            ];
+            
+            positions.forEach(pos => {
+                const leg = new THREE.Mesh(legGeometry, metalMaterial);
+                leg.position.set(pos[0], pos[1], pos[2]);
+                benchGroup.add(leg);
+            });
+            
+            benchGroup.add(seat);
+            object = benchGroup;
+            break;
+    }
+
+    if (object) {
+        object.position.set(
+            (Math.random() - 0.5) * 8,
+            type === 'spotlight' ? 3 : 0,
+            (Math.random() - 0.5) * 8
+        );
+        object.castShadow = true;
+        object.receiveShadow = true;
+        object.userData.type = type;
+        scene.add(object);
+        objects.push(object);
+        return object;
     }
 };
 
@@ -110,8 +264,65 @@ window.addEnvironment = function(type) {
             treeGroup.add(trunk, leaves);
             object = treeGroup;
             break;
+
+        case 'grass':
+            const grassGroup = new THREE.Group();
+            for(let i = 0; i < 5; i++) {
+                const bladeGeometry = new THREE.ConeGeometry(0.1, 0.5, 4);
+                const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0x33cc33 });
+                const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                blade.position.set(
+                    (Math.random() - 0.5) * 0.5,
+                    0.25,
+                    (Math.random() - 0.5) * 0.5
+                );
+                blade.rotation.y = Math.random() * Math.PI;
+                grassGroup.add(blade);
+            }
+            object = grassGroup;
+            break;
+
+        case 'rock':
+            const rockGeometry = new THREE.DodecahedronGeometry(0.5);
+            const rockMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x808080,
+                roughness: 0.8
+            });
+            object = new THREE.Mesh(rockGeometry, rockMaterial);
+            break;
+
+        case 'water':
+            const waterGeometry = new THREE.PlaneGeometry(4, 4);
+            const waterMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0077be,
+                transparent: true,
+                opacity: 0.6
+            });
+            object = new THREE.Mesh(waterGeometry, waterMaterial);
+            object.rotation.x = -Math.PI / 2;
+            break;
+
+        case 'light':
+            const lightGroup = new THREE.Group();
             
-        // Add other environment objects here
+            // Post
+            const postGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+            const postMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const post = new THREE.Mesh(postGeometry, postMaterial);
+            
+            // Light bulb
+            const bulbGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+            const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+            bulb.position.y = 1.5;
+            
+            // Point light
+            const light = new THREE.PointLight(0xffffcc, 1, 10);
+            light.position.copy(bulb.position);
+            
+            lightGroup.add(post, bulb, light);
+            object = lightGroup;
+            break;
     }
 
     if (object) {
@@ -125,6 +336,7 @@ window.addEnvironment = function(type) {
         object.userData.type = type;
         scene.add(object);
         objects.push(object);
+        return object;
     }
 };
 
