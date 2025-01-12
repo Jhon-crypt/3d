@@ -79,8 +79,10 @@ function onMouseMove(event) {
 
     // Calculate the intersection point with the drag plane
     if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-        // Move the object, considering the initial offset
+        // Move the object while preserving its original height
+        const currentY = selectedObject.position.y;
         selectedObject.position.copy(intersectionPoint.sub(offset));
+        selectedObject.position.y = currentY; // Restore the original height
         
         // Update status bar with coordinates
         updateCoordinates();
