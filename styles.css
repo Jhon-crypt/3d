@@ -1,0 +1,73 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.editor {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.toolbar {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.tool {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.video-container {
+    position: relative;
+    width: 60%;
+    border: 2px dashed yellow;
+}
+
+.editable-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 255, 0, 0.3);
+}
+
+.video-effects {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+.effect {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.animation-controls {
+    display: flex;
+    margin-top: 20px;
+}
+
+.control {
+    padding: 10px;
+    margin: 0 5px;
+    font-size: 16px;
+}
