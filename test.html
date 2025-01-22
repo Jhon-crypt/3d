@@ -24,6 +24,11 @@
             z-index: 1000; /* Ensure toolbar overlays content */
         }
 
+        .vertical-toolbar.right {
+            left: auto;
+            right: 160px;
+        }
+
         .v-tool {
             background: none;
             border: none;
@@ -44,6 +49,11 @@
             align-items: center;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             z-index: 1000;
+        }
+
+        .horizontal-toolbar.bottom {
+            top: auto;
+            bottom: -25px;
         }
 
         .h-tool {
@@ -67,7 +77,21 @@
                 <button class="v-tool">&#x2398;</button>
                 <button class="v-tool">&#x1f58a;</button>
             </div>
+            <div class="vertical-toolbar right">
+                <button class="v-tool">&#x21bb;</button>
+                <button class="v-tool">&#x27f3;</button>
+                <button class="v-tool">&#x2716;</button>
+                <button class="v-tool">&#x2398;</button>
+                <button class="v-tool">&#x1f58a;</button>
+            </div>
             <div class="horizontal-toolbar">
+                <button class="h-tool">&#x21bb;</button>
+                <button class="h-tool">&#x27f3;</button>
+                <button class="h-tool">&#x2716;</button>
+                <button class="h-tool">&#x2398;</button>
+                <button class="h-tool">&#x1f58a;</button>
+            </div>
+            <div class="horizontal-toolbar bottom">
                 <button class="h-tool">&#x21bb;</button>
                 <button class="h-tool">&#x27f3;</button>
                 <button class="h-tool">&#x2716;</button>
